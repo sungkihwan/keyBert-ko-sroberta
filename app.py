@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import jsonify, Flask, request
 import numpy as np
 
 from konlpy.tag import Okt
@@ -45,7 +45,8 @@ def mmr(doc_embedding, candidate_embeddings, words, top_n, diversity):
     return [words[idx] for idx in keywords_idx]
 
 @app.route('/predict/keyword', methods=['POST'])
-def predict_keyword(sentences):
+def predict_keyword():
+    sentences = request.get_json()['sentences']
     tokenized_doc = okt.pos(sentences)
     tokenized_nouns = ' '.join([word[0] for word in tokenized_doc if word[1] == 'Noun'])
 
@@ -61,11 +62,12 @@ def predict_keyword(sentences):
     distances = cosine_similarity(embeddings, candidate_embeddings)
     keywords = [candidates[index] for index in distances.argsort()[0][-top_n:]]
 
-    return keywords
+    return jsonify(keywords)
 
 
 @app.route('/predict/keyword/diversity', methods=['POST'])
-def predict_keyword_diversity(sentences):
+def predict_keyword_diversity():
+    sentences = request.get_json()['sentences']
     tokenized_doc = okt.pos(sentences)
     tokenized_nouns = ' '.join([word[0] for word in tokenized_doc if word[1] == 'Noun'])
 
@@ -77,8 +79,8 @@ def predict_keyword_diversity(sentences):
     embeddings = sroberta_model.encode([sentences])
     candidate_embeddings = sroberta_model.encode(candidates)
 
-    return mmr(embeddings, candidate_embeddings, candidates, top_n=5, diversity=0.7)
+    return jsonify(mmr(embeddings, candidate_embeddings, candidates, top_n=5, diversity=0.7))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',port=5002, debug=True)
+    app.run(host='0.0.0.0', port=5002, debug=True)
 
